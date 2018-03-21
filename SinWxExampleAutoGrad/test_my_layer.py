@@ -5,26 +5,25 @@ from tensorflow.python.framework import ops
 import matplotlib
 import os
 matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 
-# get current working directory
+#_sinwx_module = tf.load_op_library('~/TensorflowCustomOp/TensorFlowCustomOp/sin_wx.so')
 cwd = os.getcwd()
 print(cwd)
-
-# load .so for our custom op
 _sinwx_module = tf.load_op_library(os.path.join(cwd,'sin_wx.so') )
 sin_wx = _sinwx_module.sin_wx
 
-# register the gradient for the custom op
 @ops.RegisterGradient("SinWx")
 def _sin_wx_grad(op, grad):
-	grad_x, grad_w = _sinwx_module.sin_wx_grad(op.inputs[0], op.inputs[1], grad)
-	print (grad_x)
-	return [grad_x, grad_w]
+    grad1 = op.inputs[0] * grad
+    grad2 = op.inputs[1] * grad
+    #	grad_x, grad_w = _sinwx_module.sin_wx_grad(op.inputs[0], op.inputs[1], grad)
+    return [grad1, grad2]
+
 
 DIMENSION = 2
 LENGTH = 100
-
 # create samples
 gt_weight = np.random.random((1, DIMENSION))
 data = np.random.random((LENGTH, DIMENSION))
@@ -40,7 +39,7 @@ with tf.variable_scope('weight'):
 		shape = [DIMENSION],
 		initializer = initializer)
 
-# use custom op in the graph
+# output = tf.py_func(sin_wx, [a, weight], [tf.float32])
 output = sin_wx(gt_input, weight)
 loss = tf.reduce_mean(tf.square(output - gt_output))
 opt = tf.train.GradientDescentOptimizer(learning_rate = 0.01).minimize(loss)
@@ -48,7 +47,6 @@ opt = tf.train.GradientDescentOptimizer(learning_rate = 0.01).minimize(loss)
 
 loss_curve = []
 
-# optimize
 max_step = 1000
 with tf.Session() as session:
 	session.run(tf.global_variables_initializer())
@@ -63,7 +61,6 @@ with tf.Session() as session:
 	print (weight.eval())
 	print (gt_weight)
 
-# store loss plot on disk
 plt.figure()
 plt.plot(loss_curve)
 plt.savefig('loss.png')
